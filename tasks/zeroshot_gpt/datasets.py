@@ -35,8 +35,7 @@ def build_dataset(task):
     if task == 'WIKITEXT103':
         return _build_wikitext103_dataset()
 
-    raise NotImplementedError('dataset for {} task is not '
-                              'implemented.'.format(task))
+    raise NotImplementedError(f'dataset for {task} task is not implemented.')
 
 
 class _LMDataset(torch.utils.data.Dataset):
@@ -81,7 +80,7 @@ class _LMDataset(torch.utils.data.Dataset):
 class _LambadaDataset(torch.utils.data.Dataset):
 
     def __init__(self, path, pad_idx, tokenizer, seq_len, strict=False):
-        print_rank_0('> building lambada dataset from {} ...'.format(path))
+        print_rank_0(f'> building lambada dataset from {path} ...')
         self.seq_len = seq_len
         self.pad_idx = pad_idx
         self.tokenizer = tokenizer
@@ -90,7 +89,7 @@ class _LambadaDataset(torch.utils.data.Dataset):
         self.tokens = []
         self.labels = []
         with open(path, 'r') as f:
-            for line in f.readlines():
+            for line in f:
                 text = json.loads(line)['text']
                 tokens, labels = self.get_tokens(text)
                 self.tokens.append(tokens)
@@ -103,7 +102,7 @@ class _LambadaDataset(torch.utils.data.Dataset):
         last_token = text.split()[-1]
         start_idx = text.rfind(last_token)
         beginning_tokens = self.tokenizer.tokenize(text[:start_idx].strip())
-        last_token = self.tokenizer.tokenize(' ' + last_token)
+        last_token = self.tokenizer.tokenize(f' {last_token}')
         return beginning_tokens, last_token
 
     def __len__(self):
@@ -134,7 +133,7 @@ def _build_lambada_dataset():
     assert len(args.valid_data) == 1
     val_dataset = _LambadaDataset(args.valid_data[0], tokenizer.eod, tokenizer,
                                   args.seq_length, args.strict_lambada)
-    print_rank_0(' > found {} samples.'.format(len(val_dataset)))
+    print_rank_0(f' > found {len(val_dataset)} samples.')
 
     return val_dataset
 
@@ -155,7 +154,8 @@ def _build_wikitext103_dataset():
     val_dataset = _LMDataset(tokenized_data, args.seq_length, tokenizer.eod,
                              num_original_tokens, num_tokenized_tokens,
                              args.overlapping_eval)
-    print_rank_0(' > number of original tokens: {}, number of detokenized '
-                 'tokens: {}'.format(num_original_tokens, num_tokenized_tokens))
+    print_rank_0(
+        f' > number of original tokens: {num_original_tokens}, number of detokenized tokens: {num_tokenized_tokens}'
+    )
 
     return val_dataset

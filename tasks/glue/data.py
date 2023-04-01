@@ -35,18 +35,16 @@ class GLUEAbstractDataset(ABC, Dataset):
         self.dataset_name = dataset_name
         self.tokenizer = tokenizer
         self.max_seq_length = max_seq_length
-        print_rank_0(' > building {} dataset for {}:'.format(self.task_name,
-                                                             self.dataset_name))
+        print_rank_0(f' > building {self.task_name} dataset for {self.dataset_name}:')
         # Process the files.
         string = '  > paths:'
         for path in datapaths:
-            string += ' ' + path
+            string += f' {path}'
         print_rank_0(string)
         self.samples = []
         for datapath in datapaths:
             self.samples.extend(self.process_samples_from_single_path(datapath))
-        print_rank_0('  >> total number of samples: {}'.format(
-            len(self.samples)))
+        print_rank_0(f'  >> total number of samples: {len(self.samples)}')
 
     def __len__(self):
         return len(self.samples)
@@ -56,9 +54,9 @@ class GLUEAbstractDataset(ABC, Dataset):
         ids, types, paddings = build_tokens_types_paddings_from_text(
             raw_sample['text_a'], raw_sample['text_b'],
             self.tokenizer, self.max_seq_length)
-        sample = build_sample(ids, types, paddings,
-                              raw_sample['label'], raw_sample['uid'])
-        return sample
+        return build_sample(
+            ids, types, paddings, raw_sample['label'], raw_sample['uid']
+        )
 
     @abstractmethod
     def process_samples_from_single_path(self, datapath):

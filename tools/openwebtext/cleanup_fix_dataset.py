@@ -45,22 +45,27 @@ def process_doc(json_line, args):
 
     try:
         # Reomove all docs with less than 512 characters
-        if "remove_512" in args.tasks:
-            if len(text) < 512:
-                output['remove_512'] = True
-                return output, text, document, True
+        if "remove_512" in args.tasks and len(text) < 512:
+            output['remove_512'] = True
+            return output, text, document, True
 
         # Remove docs if less than 256 character length and contains Javascript
-        if "remove_256_javascript" in args.tasks:
-            if len(text) < 256 and 'javascript' in text.lower():
-                output['remove_256_javascript'] = True
-                return output, text, document, True
+        if (
+            "remove_256_javascript" in args.tasks
+            and len(text) < 256
+            and 'javascript' in text.lower()
+        ):
+            output['remove_256_javascript'] = True
+            return output, text, document, True
 
         # Remove docs < 512 and nonenglish
-        if "remove_512_non_english" in args.tasks:
-            if len(text) < 512 and detect(text) != 'en':
-                output['remove_512_non_english'] = True
-                return output, text, document, True
+        if (
+            "remove_512_non_english" in args.tasks
+            and len(text) < 512
+            and detect(text) != 'en'
+        ):
+            output['remove_512_non_english'] = True
+            return output, text, document, True
 
         # Fix the text using ftfy, don't remove the text, hence return False
         if "ftfy_fix_text" in args.tasks:
@@ -87,8 +92,7 @@ def process_doc(json_line, args):
             return output, cleaned_text, document, False
 
     except Exception as e:
-        print('Error: *************************\n{}\ntext: {}'.format(e, \
-            text), flush=True)
+        print(f'Error: *************************\n{e}\ntext: {text}', flush=True)
         return output, text, document, True
 
     # don't remove
@@ -97,60 +101,56 @@ def process_doc(json_line, args):
 
 def process_set(args, input_file, output_f_cleaned, output_f_filtered):
 
-    print(' > working on {} ...'.format(input_file), flush=True)
-    
+    print(f' > working on {input_file} ...', flush=True)
+
     num_docs = num_remove_512 = num_remove_java = num_remove_512_non_english \
         = num_ftfy_fix_text = num_general_cleaning = 0
 
-    # Output file and counters.
-    output_cleaned = open(output_f_cleaned, 'wb')
-    output_filtered = open(output_f_filtered, 'wb')
+    with open(output_f_cleaned, 'wb') as output_cleaned:
+        output_filtered = open(output_f_filtered, 'wb')
 
-    start_time = time.time()
+        start_time = time.time()
 
-    # Setup multi-processing.
-    num_workers = 40
-    fin = open(input_file, 'r', encoding='utf-8')
-    pool = multiprocessing.Pool(num_workers)
-    process_doc_partial = partial(process_doc, args=args)
-    processed_docs = pool.imap(process_doc_partial, fin, 500)
+        # Setup multi-processing.
+        num_workers = 40
+        fin = open(input_file, 'r', encoding='utf-8')
+        pool = multiprocessing.Pool(num_workers)
+        process_doc_partial = partial(process_doc, args=args)
+        processed_docs = pool.imap(process_doc_partial, fin, 500)
 
-    # Process documents.
-    for output, text, document, to_filter in processed_docs:
-        num_docs += 1
+        # Process documents.
+        for output, text, document, to_filter in processed_docs:
+            num_docs += 1
 
-        num_remove_512 += 1 if output['remove_512'] else 0
-        num_remove_java += 1 if output['remove_256_javascript'] else 0
-        num_remove_512_non_english += 1 if output['remove_512_non_english'] \
-            else 0
-        num_ftfy_fix_text += 1 if output['ftfy_fix_text'] else 0
-        num_general_cleaning += 1 if output['general_cleaning'] else 0
+            num_remove_512 += 1 if output['remove_512'] else 0
+            num_remove_java += 1 if output['remove_256_javascript'] else 0
+            num_remove_512_non_english += 1 if output['remove_512_non_english'] \
+                else 0
+            num_ftfy_fix_text += 1 if output['ftfy_fix_text'] else 0
+            num_general_cleaning += 1 if output['general_cleaning'] else 0
 
-        document['text'] = text
-        myjson = json.dumps(document, ensure_ascii=False)
+            document['text'] = text
+            myjson = json.dumps(document, ensure_ascii=False)
 
-        if to_filter:
-            output_filtered.write(myjson.encode('utf-8'))
-            output_filtered.write('\n'.encode('utf-8'))
-        else:
-            output_cleaned.write(myjson.encode('utf-8'))
-            output_cleaned.write('\n'.encode('utf-8'))
+            if to_filter:
+                output_filtered.write(myjson.encode('utf-8'))
+                output_filtered.write('\n'.encode('utf-8'))
+            else:
+                output_cleaned.write(myjson.encode('utf-8'))
+                output_cleaned.write('\n'.encode('utf-8'))
 
-        if num_docs % args.log_interval == 0:
-            print('    processed {:9d} documents in {:.2f} seconds ...'.format(
-                num_docs, time.time() - start_time), flush=True)
+            if num_docs % args.log_interval == 0:
+                print('    processed {:9d} documents in {:.2f} seconds ...'.format(
+                    num_docs, time.time() - start_time), flush=True)
 
-    # Close the file.
-    output_cleaned.close()
     output_filtered.close()
     fin.close()
 
     # Print stats.
-    print('  >> total docs: {} remove_512 {} remove_256_javascript {} '\
-        'remove_512_non_english {} ftfy_fix_text {} general_cleaning {}'.\
-        format(num_docs, num_remove_512, num_remove_java,\
-        num_remove_512_non_english, num_ftfy_fix_text, \
-        num_general_cleaning), flush=True)
+    print(
+        f'  >> total docs: {num_docs} remove_512 {num_remove_512} remove_256_javascript {num_remove_java} remove_512_non_english {num_remove_512_non_english} ftfy_fix_text {num_ftfy_fix_text} general_cleaning {num_general_cleaning}',
+        flush=True,
+    )
 
 if __name__ == '__main__':
 

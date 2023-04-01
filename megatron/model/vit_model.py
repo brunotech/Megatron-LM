@@ -53,8 +53,7 @@ class VitMlpHead(MegatronModule):
         hidden_state = hidden_states[:, sequence_index, :]
         dense_in_result = self.dense_in(hidden_state)
         tanh_result = torch.tanh(dense_in_result)
-        dense_out_result = self.dense_out(tanh_result)
-        return dense_out_result
+        return self.dense_out(tanh_result)
 
 
 def twod_interpolate_position_embeddings_hook(
@@ -73,7 +72,7 @@ def twod_interpolate_position_embeddings_hook(
     seq_length = num_patches + 1
     hidden_size = args.hidden_size
 
-    key = prefix + "weight"
+    key = f"{prefix}weight"
     # import pdb
     # pdb.set_trace()
     assert key in state_dict
@@ -106,7 +105,7 @@ def twod_interpolate_position_embeddings_hook(
             )
 
             input_param_grid = input_param_grid.half()
-            input_param_grid = input_param_grid.reshape((-1, gs_new * gs_new))
+            input_param_grid = input_param_grid.reshape((-1, gs_new**2))
             input_param_grid = input_param_grid.transpose(0, 1).contiguous()
 
             assert input_param_grid.shape[1] == hidden_size
@@ -218,7 +217,7 @@ class VitModel(MegatronModule):
             concatenated_tokens = torch.cat((cls_tokens, encoder_output), dim=1)
 
             token_embeddings = concatenated_tokens + \
-                self.position_embeddings(self.position_ids)
+                    self.position_embeddings(self.position_ids)
             hidden_states = self.embedding_dropout(token_embeddings)
         else:
             hidden_states = input
@@ -226,9 +225,9 @@ class VitModel(MegatronModule):
         hidden_states = self.transformer(hidden_states, None)
 
         if self.post_process:
-            if not self.finetune:
-                hidden_states = self.mlp_head(hidden_states)
-            else:
-                hidden_states = self.class_head(hidden_states[:, 0, :])
-
+            hidden_states = (
+                self.class_head(hidden_states[:, 0, :])
+                if self.finetune
+                else self.mlp_head(hidden_states)
+            )
         return hidden_states

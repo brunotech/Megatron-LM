@@ -59,7 +59,7 @@ def accuracy_func_provider(single_dataset_provider):
             else:
                 correct_ans, total_count, predictions = output
                 named_predictions.append((name, predictions))
-                names += '_' + name
+                names += f'_{name}'
             correct += correct_ans
             total += total_count
         if is_last_rank():
@@ -69,7 +69,7 @@ def accuracy_func_provider(single_dataset_provider):
 
         if output_predictions and is_last_rank():
             assert args.load is not None
-            filename = os.path.join(args.load, names + '.pt')
+            filename = os.path.join(args.load, f'{names}.pt')
             torch.save(named_predictions, filename)
 
     return metrics_func
@@ -190,6 +190,4 @@ def calculate_correct_answers(name, model, dataloader,
         if output_predictions:
             return correct_ans, total_count, (softmaxes, labels, ids)
         return correct_ans, total_count
-    if output_predictions:
-        return 0, 0, ()
-    return 0, 0
+    return (0, 0, ()) if output_predictions else (0, 0)

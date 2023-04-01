@@ -109,7 +109,6 @@ if __name__ == '__main__':
     elif args.task in ['RET-FINETUNE-NQ']:
         from orqa.supervised.finetune import main
     else:
-        raise NotImplementedError('Task {} is not implemented.'.format(
-            args.task))
+        raise NotImplementedError(f'Task {args.task} is not implemented.')
 
     main()

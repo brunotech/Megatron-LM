@@ -22,12 +22,11 @@ class RaceDataset(Dataset):
                  max_qa_length=MAX_QA_LENGTH):
 
         self.dataset_name = dataset_name
-        print_rank_0(' > building RACE dataset for {}:'.format(
-            self.dataset_name))
+        print_rank_0(f' > building RACE dataset for {self.dataset_name}:')
 
         string = '  > paths:'
         for path in datapaths:
-            string += ' ' + path
+            string += f' {path}'
         print_rank_0(string)
 
         self.samples = []
@@ -36,8 +35,7 @@ class RaceDataset(Dataset):
                                                         max_qa_length,
                                                         max_seq_length))
 
-        print_rank_0('  >> total number of samples: {}'.format(
-            len(self.samples)))
+        print_rank_0(f'  >> total number of samples: {len(self.samples)}')
 
         # This indicates that each "sample" has multiple samples that
         # will collapse into batch dimension
@@ -54,7 +52,7 @@ def process_single_datapath(datapath, tokenizer, max_qa_length, max_seq_length):
     """Read in RACE files, combine, clean-up, tokenize, and convert to
     samples."""
 
-    print_rank_0('   > working on {}'.format(datapath))
+    print_rank_0(f'   > working on {datapath}')
     start_time = time.time()
 
     # Get list of files.
@@ -109,7 +107,7 @@ def process_single_datapath(datapath, tokenizer, max_qa_length, max_seq_length):
                         qa_ids = tokenizer.tokenize(qa)
                         # Trim if needed.
                         if len(qa_ids) > max_qa_length:
-                            qa_ids = qa_ids[0:max_qa_length]
+                            qa_ids = qa_ids[:max_qa_length]
 
                         # Build the sample.
                         ids, types, paddings \

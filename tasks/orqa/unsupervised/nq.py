@@ -33,12 +33,13 @@ def get_nq_dataset(qa_data, split):
     args = get_args()
     tokenizer = get_tokenizer()
 
-    dataset = NQDataset('Google NQ {} Split'.format(split),
-                        'Google Natural Questions',
-                        qa_data,
-                        tokenizer,
-                        args.retriever_seq_length)
-    return dataset
+    return NQDataset(
+        f'Google NQ {split} Split',
+        'Google Natural Questions',
+        qa_data,
+        tokenizer,
+        args.retriever_seq_length,
+    )
 
 
 def process_nq_batch(batch):
@@ -90,12 +91,12 @@ def get_one_epoch_nq_dataloader(dataset, micro_batch_size=None):
                                  batch_size=micro_batch_size,
                                  drop_last=False)
 
-    # Data loader. Note that batch size is the per GPU batch size.
-    data_loader = CustomDataLoader(dataset,
-                                   batch_sampler=batch_sampler,
-                                   num_workers=num_workers,
-                                   pin_memory=True)
-    return data_loader
+    return CustomDataLoader(
+        dataset,
+        batch_sampler=batch_sampler,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
 
 
 def build_tokens_types_paddings_from_text(src_text, tokenizer, max_seq_length):
@@ -119,13 +120,8 @@ def build_tokens_types_paddings_from_ids(src_ids, max_seq_length, cls_id, \
     repeated multiple times in different tasks
     """
 
-    enc_ids = []
-    tokentypes_enc = []
-
-    # [CLS].
-    enc_ids.append(cls_id)
-    tokentypes_enc.append(0)
-
+    enc_ids = [cls_id]
+    tokentypes_enc = [0]
     # A.
     len_src = len(src_ids)
     enc_ids.extend(src_ids)
@@ -133,8 +129,8 @@ def build_tokens_types_paddings_from_ids(src_ids, max_seq_length, cls_id, \
 
     # Cap the size.
     if len(enc_ids) > max_seq_length - 1:
-        enc_ids = enc_ids[0: max_seq_length - 1]
-        tokentypes_enc = tokentypes_enc[0: max_seq_length - 1]
+        enc_ids = enc_ids[:max_seq_length - 1]
+        tokentypes_enc = tokentypes_enc[:max_seq_length - 1]
 
     # [SEP].
     enc_ids.append(sep_id)
@@ -160,14 +156,13 @@ def build_sample(token_ids, token_types, num_tokens, reference):
     token_types = np.array(token_types, dtype=np.int64)
     token_mask = make_attention_mask(token_ids, token_ids)
 
-    sample = ({
+    return {
         'token_ids': token_ids,
         'token_mask': token_mask,
         'token_types': token_types,
         'seq_len': num_tokens,
-        'reference': reference
-    })
-    return sample
+        'reference': reference,
+    }
 
 
 class NQDataset(ABC, Dataset):
@@ -182,12 +177,10 @@ class NQDataset(ABC, Dataset):
         self.dataset_name = dataset_name
         self.tokenizer = tokenizer
         self.max_seq_length = max_seq_length
-        print_rank_0(' > building {} dataset for {}:'.format(self.task_name,
-                                                             self.dataset_name))
+        print_rank_0(f' > building {self.task_name} dataset for {self.dataset_name}:')
         print_rank_0(datapath)
         self.samples = self.process_samples_from_single_path(datapath)
-        print_rank_0('  >> total number of samples: {}'.format(\
-                                                        len(self.samples)))
+        print_rank_0(f'  >> total number of samples: {len(self.samples)}')
 
     def __len__(self):
         return len(self.samples)
@@ -196,18 +189,16 @@ class NQDataset(ABC, Dataset):
         raw_sample = self.samples[idx]
 
         ques_tokens, tokentypes_enc, num_tokens_ques = \
-            build_tokens_types_paddings_from_text(raw_sample['question'],
+                build_tokens_types_paddings_from_text(raw_sample['question'],
                 self.tokenizer, self.max_seq_length)
 
-        sample = build_sample(ques_tokens,
-                              tokentypes_enc,
-                              num_tokens_ques,
-                              raw_sample['answers'])
-        return sample
+        return build_sample(
+            ques_tokens, tokentypes_enc, num_tokens_ques, raw_sample['answers']
+        )
 
     @staticmethod
     def process_samples_from_single_path(filename):
-        print_rank_0(' > Processing {} ...'.format(filename))
+        print_rank_0(f' > Processing {filename} ...')
         samples = []
         total = 0
 
@@ -222,7 +213,7 @@ class NQDataset(ABC, Dataset):
                 samples.append(sample)
 
                 if total % 1000 == 0:
-                    print_rank_0('  > processed {} so far ...'.format(total))
+                    print_rank_0(f'  > processed {total} so far ...')
 
-        print_rank_0(' >> processed {} samples.'.format(len(samples)))
+        print_rank_0(f' >> processed {len(samples)} samples.')
         return samples

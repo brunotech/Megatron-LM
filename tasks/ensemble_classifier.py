@@ -20,7 +20,7 @@ def process_files(args):
                 if name not in all_predictions:
                     all_predictions[name] = np.array(predictions)
                     if args.labels is None:
-                        args.labels = [i for i in range(all_predictions[name].shape[1])]
+                        args.labels = list(range(all_predictions[name].shape[1]))
                     if args.eval:
                         all_labels[name] = np.array(labels)
                     all_uid[name] = np.array(uid)
@@ -91,8 +91,8 @@ def postprocess_predictions(all_predictions, all_labels, args):
 
 
 def write_predictions(all_predictions, all_labels, all_uid, args):
-    all_correct = 0
     count = 0
+    all_correct = 0
     for dataset in all_predictions:
         preds = all_predictions[dataset]
         preds = np.argmax(preds, -1)
@@ -107,8 +107,10 @@ def write_predictions(all_predictions, all_labels, all_uid, args):
         if not os.path.exists(os.path.join(args.outdir, dataset)):
             os.makedirs(os.path.join(args.outdir, dataset))
         outpath = os.path.join(
-            args.outdir, dataset, os.path.splitext(
-                args.prediction_name)[0] + '.tsv')
+            args.outdir,
+            dataset,
+            f'{os.path.splitext(args.prediction_name)[0]}.tsv',
+        )
         with open(outpath, 'w') as f:
             f.write('id\tlabel\n')
             f.write('\n'.join(str(uid) + '\t' + str(args.labels[p])

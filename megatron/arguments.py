@@ -58,9 +58,9 @@ def parse_args(extra_args_provider=None, defaults={},
     # Tensor model parallel size.
     args.tensor_model_parallel_size = min(
         args.tensor_model_parallel_size, args.world_size)
-    assert args.world_size % args.tensor_model_parallel_size == 0, 'world size'\
-        ' ({}) is not divisible by tensor model parallel size ({})'.format(
-            args.world_size, args.tensor_model_parallel_size)
+    assert (
+        args.world_size % args.tensor_model_parallel_size == 0
+    ), f'world size ({args.world_size}) is not divisible by tensor model parallel size ({args.tensor_model_parallel_size})'
     # Pipeline model parallel size.
     args.pipeline_model_parallel_size = min(
         args.pipeline_model_parallel_size,
@@ -68,24 +68,23 @@ def parse_args(extra_args_provider=None, defaults={},
     # Checks.
     model_parallel_size = args.pipeline_model_parallel_size * \
                           args.tensor_model_parallel_size
-    assert args.world_size % model_parallel_size == 0, 'world size is not'\
-        ' divisible by tensor parallel size ({}) times pipeline parallel ' \
-        'size ({})'.format(args.world_size, args.tensor_model_parallel_size,
-                           args.pipeline_model_parallel_size)
+    assert (
+        args.world_size % model_parallel_size == 0
+    ), f'world size is not divisible by tensor parallel size ({args.world_size}) times pipeline parallel size ({args.tensor_model_parallel_size})'
     args.data_parallel_size = args.world_size // model_parallel_size
     if args.rank == 0:
-        print('using world size: {}, data-parallel-size: {}, '
-              'tensor-model-parallel size: {}, '
-              'pipeline-model-parallel size: {} '.format(
-                  args.world_size, args.data_parallel_size,
-                  args.tensor_model_parallel_size,
-                  args.pipeline_model_parallel_size), flush=True)
-    if args.pipeline_model_parallel_size > 1:
-        if args.pipeline_model_parallel_split_rank is not None:
-            assert args.pipeline_model_parallel_split_rank < \
-                    args.pipeline_model_parallel_size, 'split rank needs'\
-                    ' to be less than pipeline model parallel size ({})'.format(
-                            args.pipeline_model_parallel_size)
+        print(
+            f'using world size: {args.world_size}, data-parallel-size: {args.data_parallel_size}, tensor-model-parallel size: {args.tensor_model_parallel_size}, pipeline-model-parallel size: {args.pipeline_model_parallel_size} ',
+            flush=True,
+        )
+    if (
+        args.pipeline_model_parallel_size > 1
+        and args.pipeline_model_parallel_split_rank is not None
+    ):
+        assert (
+            args.pipeline_model_parallel_split_rank
+            < args.pipeline_model_parallel_size
+        ), f'split rank needs to be less than pipeline model parallel size ({args.pipeline_model_parallel_size})'
 
     # Deprecated arguments
     assert args.batch_size is None, '--batch-size argument is no longer ' \
@@ -110,23 +109,21 @@ def parse_args(extra_args_provider=None, defaults={},
         # For default to be valid, it should not be provided in the
         # arguments that are passed to the program. We check this by
         # ensuring the arg is set to None.
-        if getattr(args, key) is not None:
-            if args.rank == 0:
-                print('WARNING: overriding default arguments for {key}:{v} \
-                       with {key}:{v2}'.format(key=key, v=defaults[key],
-                                               v2=getattr(args, key)),
-                                               flush=True)
-        else:
+        if getattr(args, key) is None:
             setattr(args, key, defaults[key])
 
+        elif args.rank == 0:
+            print('WARNING: overriding default arguments for {key}:{v} \
+                       with {key}:{v2}'.format(key=key, v=defaults[key],
+                                           v2=getattr(args, key)),
+                                           flush=True)
     # Batch size.
     assert args.micro_batch_size is not None
     assert args.micro_batch_size > 0
     if args.global_batch_size is None:
         args.global_batch_size = args.micro_batch_size * args.data_parallel_size
         if args.rank == 0:
-            print('setting global batch size to {}'.format(
-                args.global_batch_size), flush=True)
+            print(f'setting global batch size to {args.global_batch_size}', flush=True)
     assert args.global_batch_size > 0
     if args.num_layers_per_virtual_pipeline_stage is not None:
         assert args.pipeline_model_parallel_size > 2, \
@@ -158,8 +155,7 @@ def parse_args(extra_args_provider=None, defaults={},
                       'bfloat16 data type.', flush=True)
 
     if args.rank == 0:
-        print('using {} for parameters ...'.format(args.params_dtype),
-              flush=True)
+        print(f'using {args.params_dtype} for parameters ...', flush=True)
 
     # If we do accumulation and all-reduces in fp32, we need to have local DDP
     # and we should make sure use-contiguous-buffers-in-local-ddp is not off.
@@ -268,7 +264,7 @@ def _print_args(args):
         str_list = []
         for arg in vars(args):
             dots = '.' * (48 - len(arg))
-            str_list.append('  {} {} {}'.format(arg, dots, getattr(args, arg)))
+            str_list.append(f'  {arg} {dots} {getattr(args, arg)}')
         for arg in sorted(str_list, key=lambda x: x.lower()):
             print(arg, flush=True)
         print('-------------------- end of arguments ---------------------',
@@ -276,7 +272,7 @@ def _print_args(args):
 
 
 def _check_arg_is_not_none(args, arg):
-    assert getattr(args, arg) is not None, '{} argument is None'.format(arg)
+    assert getattr(args, arg) is not None, f'{arg} argument is None'
 
 
 def _add_network_size_args(parser):

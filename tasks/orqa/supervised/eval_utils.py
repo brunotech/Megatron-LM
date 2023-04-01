@@ -178,13 +178,23 @@ def retrieval_loss(model, dataloader):
 
             def topk_accuracy(k):
                 return torch.cuda.FloatTensor(
-                    [sum([int(labels[i] in sorted_indices[i, :k]) for i in \
-                        range(local_batch_size)])])
+                    [
+                        sum(
+                            int(labels[i] in sorted_indices[i, :k])
+                            for i in range(local_batch_size)
+                        )
+                    ]
+                )
 
             def get_rank():
                 return torch.cuda.FloatTensor(
-                    [sum([torch.nonzero(labels[i] == sorted_indices[i])[0][0] \
-                        for i in range(local_batch_size)])])
+                    [
+                        sum(
+                            torch.nonzero(labels[i] == sorted_indices[i])[0][0]
+                            for i in range(local_batch_size)
+                        )
+                    ]
+                )
 
             topk_accs = [topk_accuracy(k) for k in \
                 args.retriever_report_topk_accuracies]
@@ -197,7 +207,7 @@ def retrieval_loss(model, dataloader):
             topk_acc_dict = {'top{}_acc'.format(k): v * 100 for k, v in \
                 zip(args.retriever_report_topk_accuracies, losses[1:])}
             temp_stats_dict = dict(rank=losses[0], **topk_acc_dict)
-            for k in stats_dict.keys():
+            for k in stats_dict:
                 stats_dict[k] += temp_stats_dict[k]
             total += local_batch_size
 

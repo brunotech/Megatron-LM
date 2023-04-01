@@ -87,7 +87,7 @@ def top_k_logits(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')):
 
 def pad_batch(batch, pad_id, max_len):
     context_lengths = []
-    max_context_length = max([len(tokens) for tokens in batch])
+    max_context_length = max(len(tokens) for tokens in batch)
     for tokens in batch:
         context_length = len(tokens)
         if context_length < max_context_length + max_len:
@@ -153,7 +153,7 @@ def synced_generate(model, context_tokens_tensor, context_length_tensor, tokens_
                                                  temperature=temperature)
     for tokens, lengths, output_logits, full_logits in batch_token_iterator:
         context_length += 1
-                
+
     if mpu.is_pipeline_last_stage():
         src = mpu.get_pipeline_model_parallel_last_rank()
         group = mpu.get_embedding_group()
@@ -163,19 +163,18 @@ def synced_generate(model, context_tokens_tensor, context_length_tensor, tokens_
             group = mpu.get_embedding_group()
             torch.distributed.broadcast(full_logits, src, group)
 
-    else:
-        if mpu.is_pipeline_first_stage():
+    elif mpu.is_pipeline_first_stage():
+        src = mpu.get_pipeline_model_parallel_last_rank()
+        group = mpu.get_embedding_group()
+        output_logits = torch.empty(tokens.size(0), context_length-1, dtype=torch.float32, device=torch.device("cuda"))
+        torch.distributed.broadcast(output_logits, src, group)
+
+        if all_probs:
+            args = get_args()
             src = mpu.get_pipeline_model_parallel_last_rank()
             group = mpu.get_embedding_group()
-            output_logits = torch.empty(tokens.size(0), context_length-1, dtype=torch.float32, device=torch.device("cuda"))
-            torch.distributed.broadcast(output_logits, src, group)
-            
-            if all_probs:
-                args = get_args()
-                src = mpu.get_pipeline_model_parallel_last_rank()
-                group = mpu.get_embedding_group()
-                full_logits = torch.empty(tokens.size(0), context_length, args.padded_vocab_size, dtype=torch.float32, device=torch.device("cuda"))
-                torch.distributed.broadcast(full_logits, src, group)
+            full_logits = torch.empty(tokens.size(0), context_length, args.padded_vocab_size, dtype=torch.float32, device=torch.device("cuda"))
+            torch.distributed.broadcast(full_logits, src, group)
     if tokens is not None:
         return tokens[:, :context_length], output_logits, full_logits 
 
@@ -221,8 +220,7 @@ def generate_samples_eval(model, context, max_gen_length, eos_token_id):
     args = get_args()
     args.eos_id = eos_token_id
     raw_text_len = len(context)
-    resp_sentences = generate(model, [context], max_gen_length)
-    if resp_sentences:
+    if resp_sentences := generate(model, [context], max_gen_length):
         return resp_sentences[0][raw_text_len:]
 
 def switch(val1, val2, boolean):
@@ -272,24 +270,18 @@ def sample_sequence_batch(model, context_tokens, context_lengths,
 
         # added eos_id to support the function generate_samples_eval that passes
         # eos_id as an argument and needs termination when that id id found.
-        if hasattr(args, 'eos_id'):
-            eos_id = args.eos_id
-        else:
-            eos_id = tokenizer.eod
-
+        eos_id = args.eos_id if hasattr(args, 'eos_id') else tokenizer.eod
         counter = 0
 
         batch_size = context_tokens.size(0)
         is_done = torch.zeros([batch_size]).byte().cuda()
         tokens = context_tokens
         output_logits = None
-       
+
         # Generate enough tokens for the longest sequence
         maxlen = tokens_to_generate + context_lengths.max().item() 
-       
-        if maxlen > args.seq_length:
-            maxlen = args.seq_length
-        
+
+        maxlen = min(maxlen, args.seq_length)
         lengths = torch.ones([batch_size]).long().cuda() * maxlen
 
         while context_length < maxlen:
@@ -311,7 +303,7 @@ def sample_sequence_batch(model, context_tokens, context_lengths,
                 if type_ids is not None:
                     types2use = type_ids[:, context_length - 1].view(
                         batch_size, -1)
-            
+
             output = forward_step(
                 model, tokens2use,
                 positions2use,
@@ -343,7 +335,7 @@ def sample_sequence_batch(model, context_tokens, context_lengths,
                 new_tokens = switch(
                     tokens[:, context_length].view(-1), prev, started)
                 tokens[:, context_length] = new_tokens
-                
+
                 if output_logits is None:
                     output_context = F.log_softmax(output[:, :context_length, :], 2)
                     indices = torch.unsqueeze(tokens[:, 1:context_length+1],2)
@@ -354,12 +346,12 @@ def sample_sequence_batch(model, context_tokens, context_lengths,
                     output_context = F.log_softmax(output, 2)
                     indices = torch.unsqueeze(new_tokens,1).unsqueeze(2)
                     new_output_logits = torch.gather(output_context, 2, indices).squeeze(2)
-                    
+
                     # TODO(rprenger) we're copying output_logits every time.  Should pre-allocate
                     output_logits = torch.cat([output_logits, new_output_logits],1)
                     if all_probs:
                         full_logits = torch.cat([full_logits, output_context], 1)
-                
+
                 src = mpu.get_pipeline_model_parallel_last_rank()
                 group = mpu.get_embedding_group()
                 torch.distributed.broadcast(new_tokens, src, group)

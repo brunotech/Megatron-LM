@@ -70,13 +70,8 @@ def build_tokens_types_paddings_from_text(query, context,
 def build_tokens_types_paddings_from_ids(text_ids, max_seq_length,
                                          cls_id, sep_id, pad_id):
     """Build token types and paddings, trim if needed, and pad if needed."""
-    enc_ids = []
-    tokentypes_enc = []
-
-    # [CLS].
-    enc_ids.append(cls_id)
-    tokentypes_enc.append(0)
-
+    enc_ids = [cls_id]
+    tokentypes_enc = [0]
     # A.
     len_src = len(text_ids)
     enc_ids.extend(text_ids)
@@ -84,8 +79,8 @@ def build_tokens_types_paddings_from_ids(text_ids, max_seq_length,
 
     # Cap the size.
     if len(enc_ids) > max_seq_length - 1:
-        enc_ids = enc_ids[0: max_seq_length - 1]
-        tokentypes_enc = tokentypes_enc[0: max_seq_length - 1]
+        enc_ids = enc_ids[:max_seq_length - 1]
+        tokentypes_enc = tokentypes_enc[:max_seq_length - 1]
 
     # [SEP].
     enc_ids.append(sep_id)
@@ -147,7 +142,7 @@ class OpenRetrievalAbstractDataset(ABC, Dataset):
     """Open Retrieval base dataset class."""
 
     def __init__(self, task_name, dataset_name, datapaths, tokenizer, \
-                max_seq_length, evaluate=False):
+                    max_seq_length, evaluate=False):
         # Store inputs.
         args = get_args()
         self.evaluate = evaluate
@@ -160,12 +155,11 @@ class OpenRetrievalAbstractDataset(ABC, Dataset):
         self.dataset_name = dataset_name
         self.tokenizer = tokenizer
         self.max_seq_length = max_seq_length
-        print_rank_0(' > building {} dataset for {}:'.format(self.task_name,
-                                                             self.dataset_name))
+        print_rank_0(f' > building {self.task_name} dataset for {self.dataset_name}:')
         # Process the files.
         string = '  > paths:'
         for path in datapaths:
-            string += ' ' + path
+            string += f' {path}'
         print_rank_0(string)
         self.samples = []
         for datapath in datapaths:
@@ -176,8 +170,7 @@ class OpenRetrievalAbstractDataset(ABC, Dataset):
             k = int(len(self.samples) * args.sample_rate)
             self.samples = random.sample(self.samples, k)
 
-        print_rank_0('  >> total number of samples: {}'.format(
-            len(self.samples)))
+        print_rank_0(f'  >> total number of samples: {len(self.samples)}')
 
     def __len__(self):
         return len(self.samples)
@@ -186,24 +179,23 @@ class OpenRetrievalAbstractDataset(ABC, Dataset):
         raw_sample = self.samples[idx]
 
         query_ids, query_types, query_pad_mask, ctx_ids, ctx_types, \
-            ctx_pad_mask = build_tokens_types_paddings_from_text( \
-                raw_sample['question'], raw_sample['pos_context'], \
-                self.tokenizer, self.max_seq_length)
+                ctx_pad_mask = build_tokens_types_paddings_from_text( \
+                    raw_sample['question'], raw_sample['pos_context'], \
+                    self.tokenizer, self.max_seq_length)
 
         if self.evaluate:
             neg_ctx_list = \
-                raw_sample['negative_context'][:self.val_av_rank_other_neg] + \
-                raw_sample['hard_negative_context'][:self.val_av_rank_hard_neg]
+                    raw_sample['negative_context'][:self.val_av_rank_other_neg] + \
+                    raw_sample['hard_negative_context'][:self.val_av_rank_hard_neg]
             neg_ctx_id_list, neg_ctx_types_list = \
-                build_token_types_from_context_list(neg_ctx_list, \
-                    self.tokenizer, self.max_seq_length)
+                    build_token_types_from_context_list(neg_ctx_list, \
+                        self.tokenizer, self.max_seq_length)
 
         elif self.train_with_neg:
             hard_negative_ctx = raw_sample['hard_negative_context']
             negative_ctx = raw_sample['negative_context']
-            if True:  # TODO: fix this or remove this condition
-                random.shuffle(hard_negative_ctx)
-                random.shuffle(negative_ctx)
+            random.shuffle(hard_negative_ctx)
+            random.shuffle(negative_ctx)
 
             neg_ctx_list = hard_negative_ctx[:self.train_hard_neg]
             # In the Google NQ dataset by DPR paper, there are around more than
@@ -211,22 +203,27 @@ class OpenRetrievalAbstractDataset(ABC, Dataset):
             # In those cases, substitute hard negatives by simple negatives.
             if len(neg_ctx_list) < self.train_hard_neg:
                 neg_ctx_list += negative_ctx[:self.train_hard_neg - \
-                    len(neg_ctx_list)]
+                        len(neg_ctx_list)]
 
             neg_ctx_id_list, neg_ctx_types_list = \
-                build_token_types_from_context_list(neg_ctx_list,
+                    build_token_types_from_context_list(neg_ctx_list,
                     self.tokenizer, self.max_seq_length)
         else:
             neg_ctx_id_list = None
             neg_ctx_types_list = None
 
-        sample = build_sample(query_ids, query_types, query_pad_mask,
-                              ctx_ids, ctx_types, ctx_pad_mask,
-                              raw_sample['answers'],
-                              neg_ctx_id_list, neg_ctx_types_list,
-                              include_neg=self.evaluate or self.train_with_neg)
-
-        return sample
+        return build_sample(
+            query_ids,
+            query_types,
+            query_pad_mask,
+            ctx_ids,
+            ctx_types,
+            ctx_pad_mask,
+            raw_sample['answers'],
+            neg_ctx_id_list,
+            neg_ctx_types_list,
+            include_neg=self.evaluate or self.train_with_neg,
+        )
 
     @staticmethod
     @abstractmethod
@@ -261,7 +258,7 @@ class NQSupervisedDataset(OpenRetrievalAbstractDataset):
     @staticmethod
     def process_samples_from_single_path(filename):
         """"Implement abstract method."""
-        print_rank_0(' > Processing {} ...'.format(filename))
+        print_rank_0(f' > Processing {filename} ...')
         samples = []
         total = 0
 
@@ -278,11 +275,7 @@ class NQSupervisedDataset(OpenRetrievalAbstractDataset):
                     hard_neg_context = []
 
                 # Negative Contexts
-                if len(row['negative_ctxs']) > 0:
-                    neg_context = row['negative_ctxs']
-                else:
-                    neg_context = []
-
+                neg_context = row['negative_ctxs'] if len(row['negative_ctxs']) > 0 else []
                 answers = row['answers']
                 sample = {'question': question,
                           'pos_context': pos_context,
@@ -293,8 +286,8 @@ class NQSupervisedDataset(OpenRetrievalAbstractDataset):
                 samples.append(sample)
 
                 if total % 5000 == 0:
-                    print_rank_0('  > processed {} so far ...'.format(total))
+                    print_rank_0(f'  > processed {total} so far ...')
 
-        print_rank_0(' >> processed {} samples.'.format(len(samples)))
+        print_rank_0(f' >> processed {len(samples)} samples.')
         return samples
 

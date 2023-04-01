@@ -33,7 +33,7 @@ class QQPDataset(GLUEAbstractDataset):
 
     def process_samples_from_single_path(self, filename):
         """"Implement abstract method."""
-        print_rank_0(' > Processing {} ...'.format(filename))
+        print_rank_0(f' > Processing {filename} ...')
 
         samples = []
         total = 0
@@ -46,20 +46,18 @@ class QQPDataset(GLUEAbstractDataset):
                     first = False
                     if len(row) == 3:
                         is_test = True
-                        print_rank_0('   reading {}, {}, and {} columns and '
-                                     'setting labels to {}'.format(
-                                         row[0].strip(), row[1].strip(),
-                                         row[2].strip(), self.test_label))
+                        print_rank_0(
+                            f'   reading {row[0].strip()}, {row[1].strip()}, and {row[2].strip()} columns and setting labels to {self.test_label}'
+                        )
                     else:
                         assert len(row) == 6
-                        print_rank_0('    reading {}, {}, {}, and {} columns'
-                                     ' ...'.format(
-                                         row[0].strip(), row[3].strip(),
-                                         row[4].strip(), row[5].strip()))
+                        print_rank_0(
+                            f'    reading {row[0].strip()}, {row[3].strip()}, {row[4].strip()}, and {row[5].strip()} columns ...'
+                        )
                     continue
 
                 if is_test:
-                    assert len(row) == 3, 'expected length 3: {}'.format(row)
+                    assert len(row) == 3, f'expected length 3: {row}'
                     uid = int(row[0].strip())
                     text_a = clean_text(row[1].strip())
                     text_b = clean_text(row[2].strip())
@@ -73,16 +71,13 @@ class QQPDataset(GLUEAbstractDataset):
                         text_b = clean_text(row[4].strip())
                         label = int(row[5].strip())
                     else:
-                        print_rank_0('***WARNING*** index error, '
-                                     'skipping: {}'.format(row))
+                        print_rank_0(f'***WARNING*** index error, skipping: {row}')
                         continue
                     if len(text_a) == 0:
-                        print_rank_0('***WARNING*** zero length a, '
-                                     'skipping: {}'.format(row))
+                        print_rank_0(f'***WARNING*** zero length a, skipping: {row}')
                         continue
                     if len(text_b) == 0:
-                        print_rank_0('***WARNING*** zero length b, '
-                                     'skipping: {}'.format(row))
+                        print_rank_0(f'***WARNING*** zero length b, skipping: {row}')
                         continue
                 assert label in LABELS
                 assert uid >= 0
@@ -95,7 +90,7 @@ class QQPDataset(GLUEAbstractDataset):
                 samples.append(sample)
 
                 if total % 50000 == 0:
-                    print_rank_0('  > processed {} so far ...'.format(total))
+                    print_rank_0(f'  > processed {total} so far ...')
 
-        print_rank_0(' >> processed {} samples.'.format(len(samples)))
+        print_rank_0(f' >> processed {len(samples)} samples.')
         return samples

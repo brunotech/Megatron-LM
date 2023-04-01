@@ -42,11 +42,9 @@ def model_provider(pre_process=True, post_process=True):
     """Build the model."""
 
     print_rank_0('building multichoice model for RACE ...')
-    model = MultipleChoice(num_tokentypes=2,
-                           pre_process=pre_process,
-                           post_process=post_process)
-
-    return model
+    return MultipleChoice(
+        num_tokentypes=2, pre_process=pre_process, post_process=post_process
+    )
 
 
 def metrics_func_provider():

@@ -33,7 +33,7 @@ if __name__ == '__main__':
                 this_urls = myjson[key]
                 for i in range(1, len(this_urls)):
                     urls.add(this_urls[i])
-    print('will be removing {} urls'.format(len(urls)), flush=True)
+    print(f'will be removing {len(urls)} urls', flush=True)
 
     written_docs = 0
     removed_docs = 0

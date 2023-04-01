@@ -43,22 +43,15 @@ def split_text(text, start_position, remove_char_each_side, seq):
     # first part of the text
     punctuations = ".!?"
     pos = start_position - remove_char_each_side
-    text_first = ""
-    while pos > 0 and not text[pos] in punctuations:
+    while pos > 0 and text[pos] not in punctuations:
         pos -= 1
-    if pos > 0:
-        text_first = text[0:pos+1]
-
+    text_first = text[:pos+1] if pos > 0 else ""
     # add length of seq and remove_char_each_side
     pos = start_position + len(seq) + remove_char_each_side
 
-    # last part of the text
-    text_second = ""
-    while pos < len(text) and not text[pos] in punctuations:
+    while pos < len(text) and text[pos] not in punctuations:
         pos += 1
-    if pos + 1 < len(text):
-        text_second = text[pos+1:len(text)]
-
+    text_second = text[pos+1:] if pos + 1 < len(text) else ""
     return text_first, text_second
 
 def check_and_clean_text(args, words, ngrams, text, start_position, \
@@ -66,7 +59,7 @@ def check_and_clean_text(args, words, ngrams, text, start_position, \
 
     seq = " ".join(words)
     if seq in ngrams:
-        print(" [matched]: {}".format(seq), flush=True)
+        print(f" [matched]: {seq}", flush=True)
 
         if args.get_ngram_freq_only:
             # increase freq of this seq and then only consider the later part
@@ -77,7 +70,7 @@ def check_and_clean_text(args, words, ngrams, text, start_position, \
                 local_ngram[seq] = 1
             #print(" [increased]: {} {}".format(seq, ngrams[seq]), flush=True)
             if (start_position + len(seq) + 1) < len(text):
-                text_buf.append(text[start_position + len(seq) + 1:len(text)])
+                text_buf.append(text[start_position + len(seq) + 1:])
             return False            
 
         # split the text
@@ -105,17 +98,17 @@ def free_ngram(line, args, key, ngrams, ngrams_freq_sorted):
         myjson = json.loads(line)
         text_buf = [myjson[key]]
     except Exception as e:
-        print("Error: {}".format(e), flush=True)
+        print(f"Error: {e}", flush=True)
         text_buf = []
 
     text_buf_ngram_free = []
     local_ngram = {}
-    while len(text_buf) > 0:
+    while text_buf:
 
         # get the first one from the buffer
         text = text_buf.pop(0)
         words, positions = get_words(text)
-        
+
         ngram_free = True
         # find each max n-grams and check dictionary
         for i in range(len(words) - args.max_ngram_size + 1):
@@ -147,7 +140,7 @@ def free_ngram(line, args, key, ngrams, ngrams_freq_sorted):
         # for the last max n-gram, check all the lower ngrams in it
         if ngram_free and len(words) - args.max_ngram_size > 0:
             # get the last words of the lax max ngram
-            last_seq_words = words[(len(words)-args.max_ngram_size):len(words)]
+            last_seq_words = words[len(words)-args.max_ngram_size:]
             last_seq_start_position = len(words) - args.max_ngram_size
 
             # check all n-grams lower than the max
@@ -205,7 +198,7 @@ def compute_ngrams_insert_dict(args, text, ngrams):
 
 # Build ngrams for the lambada dataset
 def process_task_lambda(args, task_file, ngrams):
-    print(' reading from {} and computing ngrams'.format(task_file))
+    print(f' reading from {task_file} and computing ngrams')
     with open(task_file, 'r') as f:
         for line in f:
             try:
@@ -214,14 +207,14 @@ def process_task_lambda(args, task_file, ngrams):
                 compute_ngrams_insert_dict(args, text, ngrams)
             except Exception as e:
                 print('Error:', e)
-    print(" Entities in ngrams {}".format(len(ngrams)), flush=True)
+    print(f" Entities in ngrams {len(ngrams)}", flush=True)
 
 
 # Build ngrams for the dataset of the given task
 def process_task(args, task_name, ngrams):
 
-    print(' reading from {} and computing ngrams'.format('import datasets'))
-    print(" Current entities in ngrams {}".format(len(ngrams)), flush=True)
+    print(' reading from import datasets and computing ngrams')
+    print(f" Current entities in ngrams {len(ngrams)}", flush=True)
     # using validation/test data from datasets
     from datasets import load_dataset
 
@@ -245,7 +238,7 @@ def process_task(args, task_name, ngrams):
     elif task_name == 'piqa':
         dataset = load_dataset('piqa', split='test')
     else:
-        print("Invalid task name: {}".format(task_name), flush=True)
+        print(f"Invalid task name: {task_name}", flush=True)
         return
 
     # read the dataset and add to ngrams
@@ -267,13 +260,15 @@ def process_task(args, task_name, ngrams):
         except Exception as e:
             print('Error:', e)
 
-    print(" After task {} entities in ngrams {}, added {}".format(task_name, \
-            len(ngrams), len(ngrams) - entities_in_ngrams), flush=True)
+    print(
+        f" After task {task_name} entities in ngrams {len(ngrams)}, added {len(ngrams) - entities_in_ngrams}",
+        flush=True,
+    )
 
 def compute_tasks_ngrams(args, ngrams):
     start_time = time.time()
-    for _, task_name in enumerate(args.tasks):
-        print('Task: {}'.format(task_name), flush=True)
+    for task_name in args.tasks:
+        print(f'Task: {task_name}', flush=True)
         if task_name == 'lambada':
             assert args.lambada_path is not None
             process_task_lambda(args, args.lambada_path, ngrams)
@@ -290,7 +285,7 @@ def compute_ngram_freq_sorted(args, ngrams):
             ngrams_freq else 1
 
     ngrams_freq_sorted = sorted(ngrams_freq.items(), key=lambda item: item[0])
-    print(" Ngram frequencies: {}".format(ngrams_freq_sorted), flush=True)
+    print(f" Ngram frequencies: {ngrams_freq_sorted}", flush=True)
     print(" Entities in ngrams {} min_ngram_size {} max_ngram_size {}".format(\
             len(ngrams), ngrams_freq_sorted[0][0], ngrams_freq_sorted[len(\
             ngrams_freq_sorted) -1 ][0]), flush=True)
@@ -302,42 +297,39 @@ def get_ngrams_below_threshold(args, ngrams, ngrams_below_threshold, \
     start_time = time.time()
     # get the ngrams frequency
     args.get_ngram_freq_only = True
- 
+
     # Open the large file to process in parallel
-    num_workers = args.num_threads 
+    num_workers = args.num_threads
     pool = multiprocessing.Pool(num_workers)
-    fin = open(dedup_file, 'r', encoding='utf-8')
-    free_ngram_abt_partial=partial(free_ngram, args=args, key=dedup_key, \
-        ngrams=ngrams, ngrams_freq_sorted=ngrams_freq_sorted)
-    free_ngrams_abt = pool.imap(free_ngram_abt_partial, fin, 500)
- 
-    counter = 0
-    for _, _, _, local_ngram in free_ngrams_abt:
-        counter += 1
-        if counter % 1000 == 0:
-            print(' [compute_stat]> processed {} documents in {:.2f} seconds ...'.
-                    format(counter, time.time() - start_time), flush=True)
-        for local_key in local_ngram:
-            if local_key in ngrams:
-                ngrams[local_key] += 1
-        local_ngram = {}
+    with open(dedup_file, 'r', encoding='utf-8') as fin:
+        free_ngram_abt_partial=partial(free_ngram, args=args, key=dedup_key, \
+            ngrams=ngrams, ngrams_freq_sorted=ngrams_freq_sorted)
+        free_ngrams_abt = pool.imap(free_ngram_abt_partial, fin, 500)
 
-    print(' Time taken to compute statistics {:.2f} seconds'.format(time.time() - \
-        start_time), flush=True)
-    pool.close()
-    pool.join()
+        for counter, (_, _, _, local_ngram) in enumerate(free_ngrams_abt, start=1):
+            if counter % 1000 == 0:
+                print(' [compute_stat]> processed {} documents in {:.2f} seconds ...'.
+                        format(counter, time.time() - start_time), flush=True)
+            for local_key in local_ngram:
+                if local_key in ngrams:
+                    ngrams[local_key] += 1
+            local_ngram = {}
 
-    start_time = time.time()
-    counter_threshold = 0
-    # Get ngram below theadhold
-    for local_key, local_val in ngrams.items():
-        if ngrams[local_key] < args.key_threshold:
-            print(" [threshold] {} {}".format(local_key, local_val), flush=True)
-            counter_threshold += 1
-            ngrams_below_threshold[local_key] = 1
-            
-    print(' Ngrams below threshold {}'.format(counter_threshold), flush=True)
-    fin.close()
+        print(' Time taken to compute statistics {:.2f} seconds'.format(time.time() - \
+            start_time), flush=True)
+        pool.close()
+        pool.join()
+
+        start_time = time.time()
+        counter_threshold = 0
+            # Get ngram below theadhold
+        for local_key, local_val in ngrams.items():
+            if ngrams[local_key] < args.key_threshold:
+                print(f" [threshold] {local_key} {local_val}", flush=True)
+                counter_threshold += 1
+                ngrams_below_threshold[local_key] = 1
+
+        print(f' Ngrams below threshold {counter_threshold}', flush=True)
 
 def clean_ngrams_below_threshold(args, ngrams_below_threshold, dedup_file, \
     dedup_key):
@@ -355,64 +347,58 @@ def clean_ngrams_below_threshold(args, ngrams_below_threshold, dedup_file, \
     counter = splitted = ignored = split_mt_thld = trimmed_count = 0
     num_workers = args.num_threads
     pool = multiprocessing.Pool(num_workers)
-    fin = open(dedup_file, 'r', encoding='utf-8')
-    free_ngram_clean_partial=partial(free_ngram, args=args, key=dedup_key, \
-        ngrams=ngrams_below_threshold, ngrams_freq_sorted=ngrams_freq_sorted)
-    free_ngrams_clean = pool.imap(free_ngram_clean_partial, fin, 500)
- 
-    out_f = open(args.output, 'wb')
+    with open(dedup_file, 'r', encoding='utf-8') as fin:
+        free_ngram_clean_partial=partial(free_ngram, args=args, key=dedup_key, \
+            ngrams=ngrams_below_threshold, ngrams_freq_sorted=ngrams_freq_sorted)
+        free_ngrams_clean = pool.imap(free_ngram_clean_partial, fin, 500)
 
-    for text_buf_ngram_free, trimmed, myjson, _ in free_ngrams_clean:
-        counter += 1
-        try:
+        with open(args.output, 'wb') as out_f:
+            for text_buf_ngram_free, trimmed, myjson, _ in free_ngrams_clean:
+                counter += 1
+                try:
 
-            trimmed_count += trimmed
+                    trimmed_count += trimmed
 
-            if len(text_buf_ngram_free) > 1:
-                splitted += 1
-            if len(text_buf_ngram_free) == 0:
-                ignored += 1
-            # more than 10 splits ignored
-            if len(text_buf_ngram_free) > args.splits_count:
-                text_buf_ngram_free = []
-                split_mt_thld += 1
+                    if len(text_buf_ngram_free) > 1:
+                        splitted += 1
+                    if len(text_buf_ngram_free) == 0:
+                        ignored += 1
+                    # more than 10 splits ignored
+                    if len(text_buf_ngram_free) > args.splits_count:
+                        text_buf_ngram_free = []
+                        split_mt_thld += 1
 
-            if args.output is not None:
-                if "split_id" in myjson:
-                    use_prefix = myjson["split_id"] + "-"
-                else:
-                    use_prefix = ""
+                    if args.output is not None:
+                        use_prefix = myjson["split_id"] + "-" if "split_id" in myjson else ""
+                        for i in range(len(text_buf_ngram_free)):
+                            split_id_string = (
+                                id_prefix + '-{:010d}'.format(counter)
+                            ) + '-{:04d}'.format(int(i))
+                            myjson[dedup_key] = text_buf_ngram_free[i]
+                            myjson["split_id"] = use_prefix + split_id_string
+                            outjson = json.dumps(myjson, ensure_ascii=False)
+                            #outjson = json.dumps({"text":text_buf_ngram_free[i],
+                            #    id_prefix+"_split_id":split_id_string},
+                            #    ensure_ascii=False)
+                            out_f.write(outjson.encode('utf-8'))
+                            out_f.write('\n'.encode('utf-8'))
 
-                for i in range(len(text_buf_ngram_free)):
-                    split_id_string = id_prefix + '-{:010d}'.format(int(\
-                        counter)) + '-{:04d}'.format(int(i))
-                    myjson[dedup_key] = text_buf_ngram_free[i]
-                    myjson["split_id"] = use_prefix + split_id_string
-                    outjson = json.dumps(myjson, ensure_ascii=False)
-                    #outjson = json.dumps({"text":text_buf_ngram_free[i],
-                    #    id_prefix+"_split_id":split_id_string},
-                    #    ensure_ascii=False)
-                    out_f.write(outjson.encode('utf-8'))
-                    out_f.write('\n'.encode('utf-8'))
+                    if counter % 1000 == 0:
+                        print(' [final]> processed {} documents in {:.2f} seconds ...'.
+                            format(counter, time.time() - start_time), flush=True)
+                except Exception as e:
+                    print('Error:', e)
 
-            if counter % 1000 == 0:
-                print(' [final]> processed {} documents in {:.2f} seconds ...'.
-                    format(counter, time.time() - start_time), flush=True)
-        except Exception as e:
-            print('Error:', e)
+            print(' [final]> processed {} documents in {:.2f} seconds ...'.
+                format(counter, time.time() - start_time), flush=True)
 
-    print(' [final]> processed {} documents in {:.2f} seconds ...'.
-        format(counter, time.time() - start_time), flush=True)
-    
-    print(' Total docs {} splitted {} ignored {} splits > theshold {} trimmed'\
-        ' {}'.format(counter, splitted, ignored, split_mt_thld, trimmed_count)\
-        , flush=True)
+            print(
+                f' Total docs {counter} splitted {splitted} ignored {ignored} splits > theshold {split_mt_thld} trimmed {trimmed_count}',
+                flush=True,
+            )
 
-    pool.close()
-    pool.join()
-
-    out_f.close()
-    fin.close()
+            pool.close()
+            pool.join()
 
 if __name__ == '__main__':
 

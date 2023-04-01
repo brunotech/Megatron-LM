@@ -68,9 +68,7 @@ class Tokens(object):
         """Returns a list of part-of-speech tags of each token.
         Returns None if this annotation was not included.
         """
-        if 'pos' not in self.annotators:
-            return None
-        return [t[self.POS] for t in self.data]
+        return [t[self.POS] for t in self.data] if 'pos' in self.annotators else None
 
     def lemmas(self):
         """Returns a list of the lemmatized text of each token.
@@ -84,9 +82,7 @@ class Tokens(object):
         """Returns a list of named-entity-recognition tags of each token.
         Returns None if this annotation was not included.
         """
-        if 'ner' not in self.annotators:
-            return None
-        return [t[self.NER] for t in self.data]
+        return [t[self.NER] for t in self.data] if 'ner' in self.annotators else None
 
     def ngrams(self, n=1, uncased=False, filter_fn=None, as_strings=True):
         """Returns a list of all ngrams from length 1 to n.
@@ -100,9 +96,7 @@ class Tokens(object):
         """
 
         def _skip(gram):
-            if not filter_fn:
-                return False
-            return filter_fn(gram)
+            return filter_fn(gram) if filter_fn else False
 
         words = self.words(uncased)
         ngrams = [(s, e + 1)
@@ -130,7 +124,7 @@ class Tokens(object):
             if ner_tag != non_ent:
                 # Chomp the sequence
                 start = idx
-                while (idx < len(entities) and entities[idx] == ner_tag):
+                while idx < len(entities) and ner_tag == ner_tag:
                     idx += 1
                 groups.append((self.slice(start, idx).untokenize(), ner_tag))
             else:
@@ -163,17 +157,18 @@ class SimpleTokenizer(Tokenizer):
             annotators: None or empty set (only tokenizes).
         """
         self._regexp = regex.compile(
-            '(%s)|(%s)' % (self.ALPHA_NUM, self.NON_WS),
-            flags=regex.IGNORECASE + regex.UNICODE + regex.MULTILINE
+            f'({self.ALPHA_NUM})|({self.NON_WS})',
+            flags=regex.IGNORECASE + regex.UNICODE + regex.MULTILINE,
         )
         if len(kwargs.get('annotators', {})) > 0:
-            logger.warning('%s only tokenizes! Skipping annotators: %s' %
-                           (type(self).__name__, kwargs.get('annotators')))
+            logger.warning(
+                f"{type(self).__name__} only tokenizes! Skipping annotators: {kwargs.get('annotators')}"
+            )
         self.annotators = set()
 
     def tokenize(self, text):
         data = []
-        matches = [m for m in self._regexp.finditer(text)]
+        matches = list(self._regexp.finditer(text))
         for i in range(len(matches)):
             # Get text
             token = matches[i].group()
@@ -181,11 +176,7 @@ class SimpleTokenizer(Tokenizer):
             # Get whitespace
             span = matches[i].span()
             start_ws = span[0]
-            if i + 1 < len(matches):
-                end_ws = matches[i + 1].span()[0]
-            else:
-                end_ws = span[1]
-
+            end_ws = matches[i + 1].span()[0] if i + 1 < len(matches) else span[1]
             # Format data
             data.append((
                 token,
@@ -206,7 +197,7 @@ class SpacyTokenizer(Tokenizer):
         model = kwargs.get('model', 'en')
         self.annotators = copy.deepcopy(kwargs.get('annotators', set()))
         nlp_kwargs = {'parser': False}
-        if not any([p in self.annotators for p in ['lemma', 'pos', 'ner']]):
+        if all(p not in self.annotators for p in ['lemma', 'pos', 'ner']):
             nlp_kwargs['tagger'] = False
         if 'ner' not in self.annotators:
             nlp_kwargs['entity'] = False
@@ -216,7 +207,7 @@ class SpacyTokenizer(Tokenizer):
         # We don't treat new lines as tokens.
         clean_text = text.replace('\n', ' ')
         tokens = self.nlp.tokenizer(clean_text)
-        if any([p in self.annotators for p in ['lemma', 'pos', 'ner']]):
+        if any(p in self.annotators for p in ['lemma', 'pos', 'ner']):
             self.nlp.tagger(tokens)
         if 'ner' in self.annotators:
             self.nlp.entity(tokens)

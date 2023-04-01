@@ -36,13 +36,13 @@ def build_sample(ids, types, paddings, label, unique_id):
     ids_np = np.array(ids, dtype=np.int64)
     types_np = np.array(types, dtype=np.int64)
     paddings_np = np.array(paddings, dtype=np.int64)
-    sample = ({'text': ids_np,
-               'types': types_np,
-               'padding_mask': paddings_np,
-               'label': int(label),
-               'uid': int(unique_id)})
-
-    return sample
+    return {
+        'text': ids_np,
+        'types': types_np,
+        'padding_mask': paddings_np,
+        'label': int(label),
+        'uid': int(unique_id),
+    }
 
 
 def build_tokens_types_paddings_from_text(text_a, text_b,
@@ -50,10 +50,7 @@ def build_tokens_types_paddings_from_text(text_a, text_b,
     """Build token types and paddings, trim if needed, and pad if needed."""
 
     text_a_ids = tokenizer.tokenize(text_a)
-    text_b_ids = None
-    if text_b is not None:
-        text_b_ids = tokenizer.tokenize(text_b)
-
+    text_b_ids = tokenizer.tokenize(text_b) if text_b is not None else None
     return build_tokens_types_paddings_from_ids(text_a_ids, text_b_ids,
                                                 max_seq_length, tokenizer.cls,
                                                 tokenizer.sep, tokenizer.pad)
@@ -63,15 +60,9 @@ def build_tokens_types_paddings_from_ids(text_a_ids, text_b_ids, max_seq_length,
                                          cls_id, sep_id, pad_id):
     """Build token types and paddings, trim if needed, and pad if needed."""
 
-    ids = []
-    types = []
-    paddings = []
-
-    # [CLS].
-    ids.append(cls_id)
-    types.append(0)
-    paddings.append(1)
-
+    ids = [cls_id]
+    types = [0]
+    paddings = [1]
     # A.
     len_text_a = len(text_a_ids)
     ids.extend(text_a_ids)
@@ -94,9 +85,9 @@ def build_tokens_types_paddings_from_ids(text_a_ids, text_b_ids, max_seq_length,
     trimmed = False
     if len(ids) >= max_seq_length:
         max_seq_length_m1 = max_seq_length - 1
-        ids = ids[0:max_seq_length_m1]
-        types = types[0:max_seq_length_m1]
-        paddings = paddings[0:max_seq_length_m1]
+        ids = ids[:max_seq_length_m1]
+        types = types[:max_seq_length_m1]
+        paddings = paddings[:max_seq_length_m1]
         trimmed = True
 
     # [SEP].

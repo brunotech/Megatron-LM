@@ -22,7 +22,7 @@ import sys
 
 
 # List of the domains to blacklist.
-domain_blacklist = set([
+domain_blacklist = {
     '500px',
     'aapks',
     'akamaihd',
@@ -133,7 +133,7 @@ domain_blacklist = set([
     'youtubedoubler',
     'ytimg',
     'zillexplorer',
-])
+}
 
 def domain_is_in_blacklist(url):
     domain = tldextract.extract(url).domain
@@ -212,9 +212,7 @@ extentions_blacklist = (
 )
 
 def extention_is_in_blacklist(url):
-    if url.split('?')[0].lower().endswith(extentions_blacklist):
-        return True
-    return False
+    return bool(url.split('?')[0].lower().endswith(extentions_blacklist))
 
 
 # Malformed urls.
@@ -235,14 +233,14 @@ def print_progress(prefix, start_time, urls_counter,
                    extention_blacklist_counter,
                    short_url_counter, malformed_url_counter,
                    duplicate_url_counter):
-    string = prefix + ' | '
+    string = f'{prefix} | '
     string += 'time elapsed (s): {:.2f} | '.format(time.time() - start_time)
-    string += 'number of urls: {} | '.format(urls_counter)
-    string += 'domain blacklisted: {} | '.format(domain_blacklist_counter)
-    string += 'extention blacklisted: {} | '.format(extention_blacklist_counter)
-    string += 'short urls (<=8): {} | '.format(short_url_counter)
-    string += 'malformed urls: {} | '.format(malformed_url_counter)
-    string += 'duplicate urls: {}'.format(duplicate_url_counter)
+    string += f'number of urls: {urls_counter} | '
+    string += f'domain blacklisted: {domain_blacklist_counter} | '
+    string += f'extention blacklisted: {extention_blacklist_counter} | '
+    string += f'short urls (<=8): {short_url_counter} | '
+    string += f'malformed urls: {malformed_url_counter} | '
+    string += f'duplicate urls: {duplicate_url_counter}'
     print(string, flush=True)
 
 
@@ -257,8 +255,8 @@ if __name__ == '__main__':
     output = sys.argv[2]
 
     # Get the list of url files.
-    files = glob.glob(path + '/*.txt')
-    print('> found {} files'.format(len(files)))
+    files = glob.glob(f'{path}/*.txt')
+    print(f'> found {len(files)} files')
 
     urls = set()
     urls_counter = 0
@@ -274,19 +272,19 @@ if __name__ == '__main__':
                 url = line.strip()
                 urls_counter += 1
                 if domain_is_in_blacklist(url):
-                    print('[DOMAIN BLACKLIST]: {}'.format(url), flush=True)
+                    print(f'[DOMAIN BLACKLIST]: {url}', flush=True)
                     domain_blacklist_counter += 1
                 elif extention_is_in_blacklist(url):
-                    print('[EXTENTION BLACKLIST]: {}'.format(url), flush=True)
+                    print(f'[EXTENTION BLACKLIST]: {url}', flush=True)
                     extention_blacklist_counter += 1
                 elif len(url) <= 8:
-                    print('[SHORT URL]: {}'.format(url), flush=True)
+                    print(f'[SHORT URL]: {url}', flush=True)
                     short_url_counter += 1
                 elif url_is_malformed(url):
-                    print('[MALFORMED URL]: {}'.format(url), flush=True)
+                    print(f'[MALFORMED URL]: {url}', flush=True)
                     malformed_url_counter += 1
                 elif url in urls:
-                    print('[DUPLICATE URL]: {}'.format(url), flush=True)
+                    print(f'[DUPLICATE URL]: {url}', flush=True)
                     duplicate_url_counter += 1
                 else:
                     urls.add(url)
@@ -304,7 +302,7 @@ if __name__ == '__main__':
                    duplicate_url_counter)
 
     # Write the final set of urls.
-    print('> writing cleaned up url list to {}'.format(output))
+    print(f'> writing cleaned up url list to {output}')
     with open(output, 'w') as f:
         for url in urls:
             f.write(url + '\n')

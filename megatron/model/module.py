@@ -52,13 +52,12 @@ class MegatronModule(torch.nn.Module):
 
     def word_embeddings_weight(self):
         if not mpu.is_pipeline_last_stage(ignore_virtual=True) or \
-                mpu.get_pipeline_model_parallel_world_size() == 1:
+                    mpu.get_pipeline_model_parallel_world_size() == 1:
             return self.language_model.embedding.word_embeddings.weight
-        else:
-            if not self.share_word_embeddings:
-                raise Exception('word_embeddings_weight() called for last '
-                                'stage, but share_word_embeddings is false')
-            return self.word_embeddings.weight
+        if not self.share_word_embeddings:
+            raise Exception('word_embeddings_weight() called for last '
+                            'stage, but share_word_embeddings is false')
+        return self.word_embeddings.weight
 
 
     def initialize_word_embeddings(self, init_method_normal):

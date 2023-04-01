@@ -172,7 +172,7 @@ def test_split_merge():
     merge_partitions(merged, partitions, partition_dim, stride)
 
     max_error = (merged - tensor).abs().max()
-    print('  > max error (should be zero): {}'.format(max_error))
+    print(f'  > max error (should be zero): {max_error}')
 
 
 def get_mp_merge_args(parser):

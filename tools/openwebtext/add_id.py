@@ -40,28 +40,23 @@ if __name__ == '__main__':
 
     print('Adding ids to dataset ...')
 
-    f_input = open(args.input_file, 'r', encoding='utf-8')
-    f_output = open(args.output_file, 'wb')
+    with open(args.input_file, 'r', encoding='utf-8') as f_input:
+        f_output = open(args.output_file, 'wb')
 
-    unique_ids = 1
-    start_time = time.time()
-    for row in f_input:
-        each_row = json.loads(row)
-        adlr_id_string = args.id_prefix + '-{:010d}'.format(int(unique_ids))
-        each_row['adlr_id'] = adlr_id_string
-        myjson = json.dumps(each_row, ensure_ascii=False)
+        start_time = time.time()
+        for unique_ids, row in enumerate(f_input, start=1):
+            each_row = json.loads(row)
+            adlr_id_string = args.id_prefix + '-{:010d}'.format(int(unique_ids))
+            each_row['adlr_id'] = adlr_id_string
+            myjson = json.dumps(each_row, ensure_ascii=False)
 
-        f_output.write(myjson.encode('utf-8'))
-        f_output.write('\n'.encode('utf-8'))
+            f_output.write(myjson.encode('utf-8'))
+            f_output.write('\n'.encode('utf-8'))
 
-        if unique_ids % args.log_interval == 0:
-            print('    processed {:9d} documents in {:.2f} seconds ...'.format( \
-                    unique_ids, time.time() - start_time), flush=True)
+            if unique_ids % args.log_interval == 0:
+                print('    processed {:9d} documents in {:.2f} seconds ...'.format( \
+                        unique_ids, time.time() - start_time), flush=True)
 
-        unique_ids += 1
-
-    # Close the file.
-    f_input.close()
     f_output.close()
-    
+
     print('done :-)', flush=True)

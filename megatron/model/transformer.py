@@ -699,7 +699,7 @@ class ParallelTransformer(MegatronModule):
         # Checks.
         if inference_max_sequence_len:
             assert self.activations_checkpoint_method is None, \
-                'inference does not work with activation checkpointing'
+                    'inference does not work with activation checkpointing'
 
         if self.pre_process:
             # Data format change to avoid explicit tranposes : [b s h] --> [s b h].
@@ -736,8 +736,6 @@ class ParallelTransformer(MegatronModule):
         if self.post_process:
             # Reverting data format change [s b h] --> [b s h].
             hidden_states = hidden_states.transpose(0, 1).contiguous()
-            output = self.final_layernorm(hidden_states)
+            return self.final_layernorm(hidden_states)
         else:
-            output = hidden_states
-        
-        return output
+            return hidden_states

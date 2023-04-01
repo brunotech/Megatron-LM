@@ -31,10 +31,11 @@ def model_provider(pre_process=True, post_process=True):
     print_rank_0("building VIT model ...")
     args = get_args()
 
-    model = VitModel(num_classes=args.num_classes,
-                     pre_process=pre_process,
-                     post_process=post_process)
-    return model
+    return VitModel(
+        num_classes=args.num_classes,
+        pre_process=pre_process,
+        post_process=post_process,
+    )
 
 def get_batch(data_iterator):
     """Build the batch."""

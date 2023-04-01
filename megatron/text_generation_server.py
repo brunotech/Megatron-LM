@@ -36,10 +36,10 @@ class MegatronGenerate(Resource):
      
     def put(self):
         args = get_args()
-        print("request IP: " + str(request.remote_addr))
+        print(f"request IP: {str(request.remote_addr)}")
         print(json.dumps(request.get_json()),flush=True)
         print("current time: ", datetime.datetime.now())
-        
+
         sentences = request.get_json()["sentences"]
         if len(sentences) > 128:
             return "Maximum number of sentences is 128", 400
@@ -57,15 +57,15 @@ class MegatronGenerate(Resource):
             all_probs = request.get_json()["all_probs"]
             if not isinstance(all_probs, bool):
                 return "all_probs must be a boolean value"
-        
+
         temperature = args.temperature
         if "temperature" in request.get_json():
             temperature = request.get_json()["temperature"]
-            if not (type(temperature) == int or type(temperature) == float):
+            if type(temperature) not in [int, float]:
                 return "temperature must be a positive number less than or equal to 100.0"
             if not (0.0 < temperature <= 100.0):
                 return "temperature must be a positive number less than or equal to 100.0"
-        
+
         add_BOS = False
         if "add_BOS" in request.get_json():
             add_BOS = request.get_json()["add_BOS"]
@@ -75,14 +75,14 @@ class MegatronGenerate(Resource):
         with lock:  # Need to get lock to keep multiple threads from hitting code
             MegatronGenerate.send_do_generate()  # Tell other ranks we're doing generate
             resp_sentences, resp_sentences_seg, output_logits, full_logits, tokens = generate(self.model, sentences, tokens_to_generate, all_probs, temperature, add_BOS) 
-        
+
         if all_probs:
             return jsonify({"sentences": resp_sentences,
                 "segments": resp_sentences_seg,
                 "logits": output_logits,
                 "all_logits": full_logits,
                 "tokens": tokens})
-        
+
         return jsonify({"sentences": resp_sentences,
             "segments": resp_sentences_seg,
             "logits": output_logits})

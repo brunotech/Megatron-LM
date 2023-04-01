@@ -33,7 +33,7 @@ class MNLIDataset(GLUEAbstractDataset):
 
     def process_samples_from_single_path(self, filename):
         """"Implement abstract method."""
-        print_rank_0(' > Processing {} ...'.format(filename))
+        print_rank_0(f' > Processing {filename} ...')
 
         samples = []
         total = 0
@@ -47,15 +47,12 @@ class MNLIDataset(GLUEAbstractDataset):
                     if len(row) == 10:
                         is_test = True
                         print_rank_0(
-                            '   reading {}, {} and {} columns and setting '
-                            'labels to {}'.format(
-                                row[0].strip(), row[8].strip(),
-                                row[9].strip(), self.test_label))
+                            f'   reading {row[0].strip()}, {row[8].strip()} and {row[9].strip()} columns and setting labels to {self.test_label}'
+                        )
                     else:
-                        print_rank_0('    reading {} , {}, {}, and {} columns '
-                                     '...'.format(
-                                         row[0].strip(), row[8].strip(),
-                                         row[9].strip(), row[-1].strip()))
+                        print_rank_0(
+                            f'    reading {row[0].strip()} , {row[8].strip()}, {row[9].strip()}, and {row[-1].strip()} columns ...'
+                        )
                     continue
 
                 text_a = clean_text(row[8].strip())
@@ -78,7 +75,7 @@ class MNLIDataset(GLUEAbstractDataset):
                 samples.append(sample)
 
                 if total % 50000 == 0:
-                    print_rank_0('  > processed {} so far ...'.format(total))
+                    print_rank_0(f'  > processed {total} so far ...')
 
-        print_rank_0(' >> processed {} samples.'.format(len(samples)))
+        print_rank_0(f' >> processed {len(samples)} samples.')
         return samples

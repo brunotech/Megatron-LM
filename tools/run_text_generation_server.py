@@ -34,9 +34,12 @@ def model_provider(pre_process=True, post_process=True):
     """Build the model."""
 
     print_rank_0('building GPT model ...')
-    model = GPTModel(num_tokentypes=0, parallel_output=False, pre_process=pre_process, post_process=post_process)
-
-    return model
+    return GPTModel(
+        num_tokentypes=0,
+        parallel_output=False,
+        pre_process=pre_process,
+        post_process=post_process,
+    )
 
 def add_text_generate_args(parser):
     group = parser.add_argument_group(title='text generation')

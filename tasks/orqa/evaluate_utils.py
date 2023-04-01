@@ -40,11 +40,7 @@ class ORQAEvaluator(object):
         # Get Evidence (Wikipedia) dataset
         self.get_evidence_dataset()
 
-        # Load query encoder checkpoint
-        only_query_model = True
-        if args.biencoder_shared_query_context_model:
-            only_query_model = False
-
+        only_query_model = not args.biencoder_shared_query_context_model
         model = get_model(get_model_provider(only_query_model=only_query_model,
             biencoder_shared_query_context_model=args.biencoder_shared_query_context_model))
 
@@ -92,7 +88,7 @@ class ORQAEvaluator(object):
         for batch in dataloader:
             # batch also has query_tokens and query_pad_data
             query_tokens, query_mask, query_types, \
-                query_len, reference = process_nq_batch(batch)
+                    query_len, reference = process_nq_batch(batch)
 
             assert len(self.model) == 1
             unwrapped_model = self.model[0]
@@ -107,10 +103,10 @@ class ORQAEvaluator(object):
             reference_list.extend(reference)
             query_vectors.extend(query_logits.split(1, dim=0))
             if len(query_vectors) % 100 == 0:
-                print_rank_0('Encoded queries {}'.format(len(query_vectors)))
+                print_rank_0(f'Encoded queries {len(query_vectors)}')
 
         query_tensor = torch.cat(query_vectors, dim=0)
-        print_rank_0('Total encoded queries tensor {}'.format(query_tensor.size()))
+        print_rank_0(f'Total encoded queries tensor {query_tensor.size()}')
 
         assert query_tensor.size(0) == len(self.eval_dataset)
         return query_tensor, reference_list
@@ -118,7 +114,7 @@ class ORQAEvaluator(object):
     def evaluate(self, qa_data, split):
         args = get_args()
         query_tensor, reference_list = self.generate_query_vectors(qa_data, \
-                                                                    split)
+                                                                        split)
         local_rank = args.local_rank
         rank = torch.distributed.get_rank()
         device_count = torch.cuda.device_count()
@@ -134,7 +130,7 @@ class ORQAEvaluator(object):
             if node_id == node:
                 device_start_rank = start_rank
                 group = node_group
-        
+
         input_ = torch.empty_like(query_tensor).copy_(query_tensor).detach_()
         tensor_list = [torch.empty_like(input_) for _ in range(device_count)]
         torch.distributed.all_gather(tensor_list, query_tensor, group=group)
@@ -150,24 +146,24 @@ class ORQAEvaluator(object):
 
         if local_rank != 0:
             distance = torch.empty(device_count * len(query_tensor), \
-                args.faiss_topk_retrievals, dtype=torch.float32).cuda()
+                    args.faiss_topk_retrievals, dtype=torch.float32).cuda()
             topkindex = torch.empty(device_count * len(query_tensor), \
-                args.faiss_topk_retrievals, dtype=torch.int64).cuda()
+                    args.faiss_topk_retrievals, dtype=torch.int64).cuda()
 
         torch.distributed.broadcast(distance, src=device_start_rank, \
-            group=group)
+                group=group)
         torch.distributed.broadcast(topkindex, src=device_start_rank, \
-            group=group)
+                group=group)
 
         distance = torch.split(distance, len(query_tensor), dim=0)\
-            [local_rank]
+                [local_rank]
         topkindex = torch.split(topkindex, len(query_tensor), dim=0)\
-            [local_rank]
+                [local_rank]
 
-        top_ids_and_scores = []
-        for darray, topkarray in zip(distance, topkindex):
-            top_ids_and_scores.append((topkarray.tolist(), darray.tolist()))
-
+        top_ids_and_scores = [
+            (topkarray.tolist(), darray.tolist())
+            for darray, topkarray in zip(distance, topkindex)
+        ]
         passages = self.evidence_dataset.id2text
         match_stats = calculate_matches(passages,
                                         reference_list,
@@ -176,11 +172,10 @@ class ORQAEvaluator(object):
                                         match_type=args.faiss_match)
         top_k_hits = match_stats.top_k_hits
 
-        print_rank_0("{} SET RESULTS".format(split))
-        print_rank_0("topk-{} documents hits {}".format(
-            args.faiss_topk_retrievals, top_k_hits))
+        print_rank_0(f"{split} SET RESULTS")
+        print_rank_0(f"topk-{args.faiss_topk_retrievals} documents hits {top_k_hits}")
         top_k_hits = [v / len(top_ids_and_scores) for v in top_k_hits]
-        print_rank_0("top-k documents hits accuracy {}".format(top_k_hits))
+        print_rank_0(f"top-k documents hits accuracy {top_k_hits}")
 
         for i in args.retriever_report_topk_accuracies:
             print_rank_0("top-{}: {:.2f}".format(i, top_k_hits[i-1] * 100))

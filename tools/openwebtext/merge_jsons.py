@@ -33,7 +33,7 @@ if __name__ == '__main__':
     json_path = args.json_path
     out_file = args.output_file
 
-    json_files = glob.glob(json_path + '/*.json')
+    json_files = glob.glob(f'{json_path}/*.json')
 
     counter = 0
 

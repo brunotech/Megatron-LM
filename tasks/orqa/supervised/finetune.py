@@ -49,8 +49,9 @@ def check_and_append_tensor_for_gather(group, rank, world_size, input_):
     # if the size are different than the max, extend the tensor
     # accordingly
     if max_length > current_length:
-        padding=tuple([0] * (input_.dim() * 2 - 1)) + \
-            tuple([max_length - current_length])
+        padding = tuple([0] * (input_.dim() * 2 - 1)) + (
+            max_length - current_length,
+        )
         input_ = F.pad(input=input_, pad=padding)
 
     return input_
@@ -244,8 +245,7 @@ def main():
     if args.task == 'RET-FINETUNE-NQ':
         from tasks.orqa.supervised.data import NQSupervisedDataset as Dataset
     else:
-        raise NotImplementedError('ORQA task {} is not implemented.'.format(
-            args.task))
+        raise NotImplementedError(f'ORQA task {args.task} is not implemented.')
 
     orqa(Dataset)
 

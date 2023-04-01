@@ -31,20 +31,20 @@ def print_progress(prefix, start_time, num_docs, num_fixed_text,
                    num_non_english_docs, chars_non_english_docs,
                    num_small_docs, chars_small_docs):
 
-    string = prefix + ' | '
+    string = f'{prefix} | '
     string += 'elapsed time: {:.2f} | '.format(time.time() - start_time)
-    string += 'documents: {} | '.format(num_docs)
-    string += 'fixed text: {} | '.format(num_fixed_text)
-    string += 'non-english: {} | '.format(num_non_english_docs)
-    string += 'non-english chars: {} | '.format(chars_non_english_docs)
-    string += 'small docs: {} | '.format(num_small_docs)
-    string += 'small docs chars: {}'.format(chars_small_docs)
+    string += f'documents: {num_docs} | '
+    string += f'fixed text: {num_fixed_text} | '
+    string += f'non-english: {num_non_english_docs} | '
+    string += f'non-english chars: {chars_non_english_docs} | '
+    string += f'small docs: {num_small_docs} | '
+    string += f'small docs chars: {chars_small_docs}'
     print(string, flush=True)
 
 
 def filter_corpus(filename, out_filename, print_interval=10000):
 
-    print(' > filtering {}'.format(filename))
+    print(f' > filtering {filename}')
 
     tokenizer = Tokenizer(cache_dir='./cache')
 
@@ -107,8 +107,8 @@ if __name__ == '__main__':
     input_filename = sys.argv[1]
     output_filename = sys.argv[2]
 
-    print('will be reading {}'.format(input_filename))
-    print('and will write the results to {}'.format(output_filename))
+    print(f'will be reading {input_filename}')
+    print(f'and will write the results to {output_filename}')
 
     filter_corpus(input_filename, output_filename)
 
